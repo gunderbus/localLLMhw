@@ -2,10 +2,42 @@
     -fx-background-color: linear-gradient(to bottom, #f8fafc, #e2e8f0);
 }
 
-.title-label {
-    -fx-font-size: 32px;
+.hover-box {
+    -fx-background-color: white;
+    -fx-background-radius: 14;
+    -fx-padding: 18;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.10), 16, 0.20, 0, 6);
+}
+
+.hover-box:hover {
+    -fx-border-color: #93c5fd;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.25), 26, 0.24, 0, 10);
+}
+
+.hover-title {
+    -fx-font-size: 24px;
     -fx-font-weight: 700;
     -fx-text-fill: #0f172a;
+}
+
+.hover-body {
+    -fx-font-size: 14px;
+    -fx-text-fill: #334155;
+}
+
+.card-button {
+    -fx-background-color: #0f172a;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 8 14 8 14;
+    -fx-background-radius: 8;
+}
+
+.card-button:hover {
+    -fx-background-color: #1e293b;
 }
 
 .bottom-button {
