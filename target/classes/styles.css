@@ -1,0 +1,27 @@
+.app-root {
+    -fx-background-color: linear-gradient(to bottom, #f8fafc, #e2e8f0);
+}
+
+.title-label {
+    -fx-font-size: 32px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #0f172a;
+}
+
+.bottom-button {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-padding: 10 22 10 22;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+}
+
+.bottom-button:hover {
+    -fx-background-color: #1d4ed8;
+}
+
+.bottom-button:pressed {
+    -fx-background-color: #1e40af;
+}
