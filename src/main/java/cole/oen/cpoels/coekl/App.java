@@ -7,18 +7,29 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class App extends Application {
     @Override
     public void start(Stage stage) {
-        Label title = new Label("Hello JavaFX");
-        title.getStyleClass().add("title-label");
+        Label cardTitle = new Label("Hover Box");
+        cardTitle.getStyleClass().add("hover-title");
+
+        Label cardBody = new Label("This box works like a div container.\nPut labels, buttons, inputs, and layouts inside it.");
+        cardBody.getStyleClass().add("hover-body");
+
+        Button cardButton = new Button("Inside Box Button");
+        cardButton.getStyleClass().add("card-button");
+
+        VBox hoverBox = new VBox(10, cardTitle, cardBody, cardButton);
+        hoverBox.getStyleClass().add("hover-box");
+        hoverBox.setMaxWidth(360);
 
         Button actionButton = new Button("Click Me");
         actionButton.getStyleClass().add("bottom-button");
 
-        StackPane root = new StackPane(title, actionButton);
+        StackPane root = new StackPane(hoverBox, actionButton);
         root.getStyleClass().add("app-root");
         StackPane.setAlignment(actionButton, Pos.BOTTOM_CENTER);
         StackPane.setMargin(actionButton, new Insets(0, 0, 24, 0));
@@ -28,7 +39,7 @@ public class App extends Application {
             App.class.getResource("/styles.css").toExternalForm()
         );
 
-        stage.setTitle("tuoeis");
+        stage.setTitle("test application");
         stage.setScene(scene);
         stage.show();
     }
