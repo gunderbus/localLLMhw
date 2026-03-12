@@ -85,7 +85,8 @@ public class OllamaIO implements AIIO {
     }
 
     @Override
-    public String[] getTransformationPlan(String aiInstruction, String[] filePaths) {
+    public String getTransformationPlan(String aiInstruction, String[] filePaths) {
+        validatePlanInputs(aiInstruction, filePaths);
         // Build a prompt that asks the model for a concise edit plan.
         String[] contents = readFiles(filePaths);
         String prompt = buildPlanPrompt(aiInstruction, filePaths, contents);
