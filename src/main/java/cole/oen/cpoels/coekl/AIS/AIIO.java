@@ -14,7 +14,7 @@ public interface AIIO {
 
     public void displayStatus(String message);
 
-    public String getTransformationPlan(String aiInstruction, String[] filePaths);
+    public String[] getTransformationPlan(String aiInstruction, String[] filePaths);
 
     public String[] applyTransformationPlan(String transformationPlan, String[] filePaths);
 

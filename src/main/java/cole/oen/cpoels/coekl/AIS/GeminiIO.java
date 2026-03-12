@@ -38,8 +38,25 @@ public class GeminiIO implements AIIO {
 
     @Override
     public String getTransformationPlan(String aiInstruction, String[] filePaths) {
-        // Placeholder for getting transformation plan from Gemini API.
-        return "Generated transformation plan based on AI instruction.";
+        validatePlanInputs(aiInstruction, filePaths);
+        String[] contents = readFiles(filePaths);
+        StringBuilder builder = new StringBuilder();
+        builder.append("Planned steps:\n");
+        builder.append("1. Review instruction: ").append(aiInstruction).append("\n");
+        int step = 2;
+        for (int i = 0; i < filePaths.length; i++) {
+            String content = contents[i] == null ? "" : contents[i];
+            builder.append(step++)
+                .append(". Update ")
+                .append(filePaths[i])
+                .append(" (")
+                .append(countLines(content))
+                .append(" lines, ")
+                .append(content.length())
+                .append(" chars)\n");
+        }
+        builder.append(step).append(". Verify changes and summarize updates.");
+        return builder.toString();
     }
 
     @Override
@@ -83,6 +100,33 @@ public class GeminiIO implements AIIO {
             Files.writeString(Path.of(path), content, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new RuntimeException("Failed to write file: " + path, e);
+        }
+    }
+
+    private int countLines(String content) {
+        if (content.isEmpty()) {
+            return 0;
+        }
+        int lines = 1;
+        for (int i = 0; i < content.length(); i++) {
+            if (content.charAt(i) == '\n') {
+                lines++;
+            }
+        }
+        return lines;
+    }
+
+    private void validatePlanInputs(String aiInstruction, String[] filePaths) {
+        if (aiInstruction == null || aiInstruction.isBlank()) {
+            throw new IllegalArgumentException("AI instruction must be provided.");
+        }
+        if (filePaths == null || filePaths.length == 0) {
+            throw new IllegalArgumentException("At least one file path must be provided.");
+        }
+        for (String path : filePaths) {
+            if (path == null || path.isBlank()) {
+                throw new IllegalArgumentException("File path cannot be blank.");
+            }
         }
     }
 

@@ -73,6 +73,7 @@ public class OllamaIO implements AIIO {
 
     @Override
     public String getTransformationPlan(String aiInstruction, String[] filePaths) {
+        validatePlanInputs(aiInstruction, filePaths);
         // Build a prompt that asks the model for a concise edit plan.
         String[] contents = readFiles(filePaths);
         String prompt = buildPlanPrompt(aiInstruction, filePaths, contents);
@@ -159,6 +160,20 @@ public class OllamaIO implements AIIO {
         }
         builder.append("Remember: return JSON only, no extra text.");
         return builder.toString();
+    }
+
+    private void validatePlanInputs(String aiInstruction, String[] filePaths) {
+        if (aiInstruction == null || aiInstruction.isBlank()) {
+            throw new IllegalArgumentException("AI instruction must be provided.");
+        }
+        if (filePaths == null || filePaths.length == 0) {
+            throw new IllegalArgumentException("At least one file path must be provided.");
+        }
+        for (String path : filePaths) {
+            if (path == null || path.isBlank()) {
+                throw new IllegalArgumentException("File path cannot be blank.");
+            }
+        }
     }
 
     private String callOllama(String prompt) {
