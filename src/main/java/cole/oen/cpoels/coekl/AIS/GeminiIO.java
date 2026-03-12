@@ -6,7 +6,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class GeminiIO implements AIIO {
-    // Gemini integration TODO: wire Vertex AI client here when ready.
+    
+    // Implementation of the gemini model
+    new VertexAI client = VertexAI.createClient();
+    GenerativeModel model = client.getGenerativeModel("gemini-1.5-pro");
 
     @Override
     public String processFilesWithAI(String[] filePaths, String aiInstruction) {
@@ -37,26 +40,27 @@ public class GeminiIO implements AIIO {
     }
 
     @Override
-    public String getTransformationPlan(String aiInstruction, String[] filePaths) {
-        validatePlanInputs(aiInstruction, filePaths);
-        String[] contents = readFiles(filePaths);
-        StringBuilder builder = new StringBuilder();
-        builder.append("Planned steps:\n");
-        builder.append("1. Review instruction: ").append(aiInstruction).append("\n");
-        int step = 2;
-        for (int i = 0; i < filePaths.length; i++) {
-            String content = contents[i] == null ? "" : contents[i];
-            builder.append(step++)
-                .append(". Update ")
-                .append(filePaths[i])
-                .append(" (")
-                .append(countLines(content))
-                .append(" lines, ")
-                .append(content.length())
-                .append(" chars)\n");
+    public String[] getTransformationPlan(String aiInstruction, String[] filePaths) {
+        // Placeholder for getting transformation plan from Gemini API.
+        String[] transformationPlan = new String[filePaths.length];
+        String[] readFilesDone = readFiles(filePaths);
+        for(int i = 0; i <) filePaths.length; i++{
+            transformationPlan[i] = model.generateContent("Create a concise transformation plan for the following instruction: " + aiInstruction + " based on the contents of files: " + readFilesDone[i], new ResponseHandler<GenerateContentResponse>() {
+                @Override
+                public void onResponse(GenerateContentResponse response) {
+                    // Handle successful response
+                    String plan = response.getContent();
+                    return plan;
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    // Handle error
+                    handleErrors(e);
+                }
+            });
         }
-        builder.append(step).append(". Verify changes and summarize updates.");
-        return builder.toString();
+        return "There was an error getting the transformation plan, please try again.";
     }
 
     @Override
@@ -100,33 +104,6 @@ public class GeminiIO implements AIIO {
             Files.writeString(Path.of(path), content, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new RuntimeException("Failed to write file: " + path, e);
-        }
-    }
-
-    private int countLines(String content) {
-        if (content.isEmpty()) {
-            return 0;
-        }
-        int lines = 1;
-        for (int i = 0; i < content.length(); i++) {
-            if (content.charAt(i) == '\n') {
-                lines++;
-            }
-        }
-        return lines;
-    }
-
-    private void validatePlanInputs(String aiInstruction, String[] filePaths) {
-        if (aiInstruction == null || aiInstruction.isBlank()) {
-            throw new IllegalArgumentException("AI instruction must be provided.");
-        }
-        if (filePaths == null || filePaths.length == 0) {
-            throw new IllegalArgumentException("At least one file path must be provided.");
-        }
-        for (String path : filePaths) {
-            if (path == null || path.isBlank()) {
-                throw new IllegalArgumentException("File path cannot be blank.");
-            }
         }
     }
 
