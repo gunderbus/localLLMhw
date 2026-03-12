@@ -1,6 +1,7 @@
 package cole.oen.cpoels.coekl;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -16,10 +17,18 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+
+import cole.oen.cpoels.coekl.AIS.AIIO;
+import cole.oen.cpoels.coekl.AIS.OllamaIO;
 
 public class App extends Application {
     @Override
     public void start(Stage stage) {
+        AIIO aiBackend = new OllamaIO("http://localhost:11434", "llama3");
+        AtomicReference<String> planRef = new AtomicReference<>();
+
         Label title = new Label("AI File Transformer");
         title.getStyleClass().add("screen-title");
 
@@ -112,7 +121,22 @@ public class App extends Application {
                 statusLabel.setText("Enter an AI instruction before generating a plan.");
                 return;
             }
-            statusLabel.setText("Plan generated. Review files and click Apply Changes.");
+            String[] filePaths = selectedFilesView.getItems().toArray(String[]::new);
+            generatePlanButton.setDisable(true);
+            applyButton.setDisable(true);
+            statusLabel.setText("Generating plan with local LLM...");
+            CompletableFuture
+                .supplyAsync(() -> aiBackend.getTransformationPlan(promptInput.getText(), filePaths))
+                .whenComplete((plan, error) -> Platform.runLater(() -> {
+                    generatePlanButton.setDisable(false);
+                    applyButton.setDisable(false);
+                    if (error != null) {
+                        statusLabel.setText("Plan failed: " + error.getMessage());
+                        return;
+                    }
+                    planRef.set(plan);
+                    statusLabel.setText("Plan generated. Click Apply Changes to write updates.");
+                }));
         });
 
         applyButton.setOnAction(event -> {
@@ -124,7 +148,27 @@ public class App extends Application {
                 statusLabel.setText("No AI instruction provided.");
                 return;
             }
-            statusLabel.setText("Changes applied (UI demo). Connect this action to your AI backend.");
+            String plan = planRef.get();
+            if (plan == null || plan.isBlank()) {
+                statusLabel.setText("Generate a plan before applying changes.");
+                return;
+            }
+            String[] filePaths = selectedFilesView.getItems().toArray(String[]::new);
+            generatePlanButton.setDisable(true);
+            applyButton.setDisable(true);
+            statusLabel.setText("Applying changes with local LLM...");
+            CompletableFuture
+                .supplyAsync(() -> aiBackend.applyTransformationPlan(plan, filePaths))
+                .whenComplete((updatedFiles, error) -> Platform.runLater(() -> {
+                    generatePlanButton.setDisable(false);
+                    applyButton.setDisable(false);
+                    if (error != null) {
+                        statusLabel.setText("Apply failed: " + error.getMessage());
+                        return;
+                    }
+                    aiBackend.writeFiles(updatedFiles, filePaths);
+                    statusLabel.setText("Changes applied to " + filePaths.length + " file(s).");
+                }));
         });
 
         VBox root = new VBox(panel);

@@ -1,3 +1,5 @@
+package cole.oen.cpoels.coekl.AIS;
+
 public interface AIIO {
 
     // Interface ideas

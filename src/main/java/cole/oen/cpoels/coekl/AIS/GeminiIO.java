@@ -1,12 +1,4 @@
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Map;
+package cole.oen.cpoels.coekl.AIS;
 
 public class GeminiIO implements AIIO {
 
@@ -14,6 +6,7 @@ public class GeminiIO implements AIIO {
     public String processFilesWithAI(String[] filePaths, String aiInstruction) {
         // Placeholder for Gemini API integration
         return "Transformed file contents based on AI instruction.";
+        
     }
 
     @Override
