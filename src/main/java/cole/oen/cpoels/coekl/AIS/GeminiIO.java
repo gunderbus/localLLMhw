@@ -37,13 +37,17 @@ public class GeminiIO implements AIIO {
 
     @Override
     public String processFilesWithAI(String[] filePaths, String aiInstruction) {
-        // Placeholder for Gemini API integration.
-        return "Transformed file contents based on AI instruction.";
+        String plan = getTransformationPlan(aiInstruction, filePaths);
+        String[] transformed = applyTransformationPlan(plan, filePaths);
+        logTransformationDetails(aiInstruction, filePaths, transformed);
+        writeFiles(transformed, filePaths);
+        showTransformationSummary(aiInstruction, filePaths, transformed);
+        return plan;
     }
 
     @Override
     public void saveTransformedFiles(String[] transformedFileContents, String[] originalFilePaths) {
-        // Placeholder for saving transformed files
+        writeFiles(transformedFileContents, originalFilePaths);
     }
 
     @Override
