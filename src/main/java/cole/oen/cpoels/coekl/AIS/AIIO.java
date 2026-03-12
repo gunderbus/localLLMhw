@@ -2,6 +2,10 @@ package cole.oen.cpoels.coekl.AIS;
 
 public interface AIIO {
 
+    public Class AIIOLogging{
+        private String[] loggedData = new String[1];
+    }
+
     // Interface ideas
     // Maybe instead could contact different ais?
     public String processFilesWithAI(String[] filePaths, String aiInstruction);

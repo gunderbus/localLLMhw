@@ -13,8 +13,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class OllamaIO implements AIIO {
@@ -27,6 +30,7 @@ public class OllamaIO implements AIIO {
     private final ObjectMapper objectMapper;
     private final String baseUrl;
     private final String model;
+    private final List<String> loggedData = new ArrayList<>();
 
     public OllamaIO(String baseUrl, String model) {
         this.baseUrl = baseUrl;
@@ -43,6 +47,7 @@ public class OllamaIO implements AIIO {
         // High-level flow: plan -> apply -> write -> summarize.
         String plan = getTransformationPlan(aiInstruction, filePaths);
         String[] transformed = applyTransformationPlan(plan, filePaths);
+        logTransformationDetails(aiInstruction, filePaths, transformed);
         writeFiles(transformed, filePaths);
         showTransformationSummary(aiInstruction, filePaths, transformed);
         return plan;
@@ -55,10 +60,18 @@ public class OllamaIO implements AIIO {
 
     @Override
     public void logTransformationDetails(String aiInstruction, String[] originalFilePaths, String[] transformedFileContents) {
+        loggedData.clear();
+        String[] originals = readFiles(originalFilePaths);
+        for (int i = 0; i < originalFilePaths.length; i++) {
+            String path = originalFilePaths[i];
+            String original = safeGet(originals, i);
+            String transformed = safeGet(transformedFileContents, i);
+            loggedData.add(buildChangeEntry(path, original, transformed));
+        }
         // Simple console logging for now; swap in a logger if needed.
         System.out.println("AI instruction: " + aiInstruction);
         System.out.println("Files: " + Arrays.toString(originalFilePaths));
-        System.out.println("Transformed " + transformedFileContents.length + " files.");
+        System.out.println("Logged " + loggedData.size() + " file change entries.");
     }
 
     @Override
@@ -112,6 +125,10 @@ public class OllamaIO implements AIIO {
         System.out.println("Updated " + transformedFileContents.length + " files.");
     }
 
+    public List<String> getLoggedData() {
+        return Collections.unmodifiableList(loggedData);
+    }
+
     private String readFileSafely(String path) {
         try {
             String content = Files.readString(Path.of(path), StandardCharsets.UTF_8);
@@ -131,6 +148,35 @@ public class OllamaIO implements AIIO {
         } catch (IOException e) {
             throw new RuntimeException("Failed to write file: " + path, e);
         }
+    }
+
+    private String safeGet(String[] values, int index) {
+        if (values == null || index < 0 || index >= values.length || values[index] == null) {
+            return "";
+        }
+        return values[index];
+    }
+
+    private String buildChangeEntry(String path, String original, String transformed) {
+        if (original.equals(transformed)) {
+            return "NO_CHANGE: " + path;
+        }
+        return "CHANGED: " + path
+            + " (lines " + countLines(original) + " -> " + countLines(transformed)
+            + ", chars " + original.length() + " -> " + transformed.length() + ")";
+    }
+
+    private int countLines(String content) {
+        if (content.isEmpty()) {
+            return 0;
+        }
+        int lines = 1;
+        for (int i = 0; i < content.length(); i++) {
+            if (content.charAt(i) == '\n') {
+                lines++;
+            }
+        }
+        return lines;
     }
 
     private String buildPlanPrompt(String instruction, String[] filePaths, String[] contents) {
