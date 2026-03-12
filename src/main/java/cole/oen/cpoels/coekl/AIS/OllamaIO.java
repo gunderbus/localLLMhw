@@ -18,7 +18,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class OllamaIO implements AIIO {
+    // Keep requests bounded so UI doesn't hang forever.
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
+    // Avoid overloading the prompt with extremely large files.
     private static final int MAX_FILE_CHARS = 160_000;
 
     private final HttpClient httpClient;
@@ -29,6 +31,7 @@ public class OllamaIO implements AIIO {
     public OllamaIO(String baseUrl, String model) {
         this.baseUrl = baseUrl;
         this.model = model;
+        // Shared HTTP client for reuse and connection pooling.
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -37,6 +40,7 @@ public class OllamaIO implements AIIO {
 
     @Override
     public String processFilesWithAI(String[] filePaths, String aiInstruction) {
+        // High-level flow: plan -> apply -> write -> summarize.
         String plan = getTransformationPlan(aiInstruction, filePaths);
         String[] transformed = applyTransformationPlan(plan, filePaths);
         writeFiles(transformed, filePaths);
@@ -51,6 +55,7 @@ public class OllamaIO implements AIIO {
 
     @Override
     public void logTransformationDetails(String aiInstruction, String[] originalFilePaths, String[] transformedFileContents) {
+        // Simple console logging for now; swap in a logger if needed.
         System.out.println("AI instruction: " + aiInstruction);
         System.out.println("Files: " + Arrays.toString(originalFilePaths));
         System.out.println("Transformed " + transformedFileContents.length + " files.");
@@ -68,6 +73,7 @@ public class OllamaIO implements AIIO {
 
     @Override
     public String getTransformationPlan(String aiInstruction, String[] filePaths) {
+        // Build a prompt that asks the model for a concise edit plan.
         String[] contents = readFiles(filePaths);
         String prompt = buildPlanPrompt(aiInstruction, filePaths, contents);
         return callOllama(prompt);
@@ -75,6 +81,7 @@ public class OllamaIO implements AIIO {
 
     @Override
     public String[] applyTransformationPlan(String transformationPlan, String[] filePaths) {
+        // Ask the model to apply the plan and return JSON with new contents.
         String[] contents = readFiles(filePaths);
         String prompt = buildApplyPrompt(transformationPlan, filePaths, contents);
         String json = callOllama(prompt);
@@ -83,6 +90,7 @@ public class OllamaIO implements AIIO {
 
     @Override
     public String[] readFiles(String[] filePaths) {
+        // Read each file from disk into memory.
         String[] contents = new String[filePaths.length];
         for (int i = 0; i < filePaths.length; i++) {
             contents[i] = readFileSafely(filePaths[i]);
@@ -92,6 +100,7 @@ public class OllamaIO implements AIIO {
 
     @Override
     public void writeFiles(String[] fileContents, String[] filePaths) {
+        // Write each transformed content back to its original path.
         for (int i = 0; i < filePaths.length; i++) {
             writeFileSafely(filePaths[i], fileContents[i]);
         }
@@ -107,6 +116,7 @@ public class OllamaIO implements AIIO {
         try {
             String content = Files.readString(Path.of(path), StandardCharsets.UTF_8);
             if (content.length() > MAX_FILE_CHARS) {
+                // Truncate to keep prompts reasonable while signaling truncation.
                 return content.substring(0, MAX_FILE_CHARS) + "\n/* TRUNCATED */";
             }
             return content;
@@ -124,6 +134,7 @@ public class OllamaIO implements AIIO {
     }
 
     private String buildPlanPrompt(String instruction, String[] filePaths, String[] contents) {
+        // Plan prompt: ask for a short numbered list of edit steps.
         StringBuilder builder = new StringBuilder();
         builder.append("You are planning edits to source files. Provide a concise plan.\n");
         builder.append("Instruction:\n").append(instruction).append("\n\n");
@@ -136,6 +147,7 @@ public class OllamaIO implements AIIO {
     }
 
     private String buildApplyPrompt(String plan, String[] filePaths, String[] contents) {
+        // Apply prompt: force JSON-only output for deterministic parsing.
         StringBuilder builder = new StringBuilder();
         builder.append("You are editing files. Apply the plan and instruction.\n");
         builder.append("Return ONLY valid JSON matching this schema:\n");
@@ -150,6 +162,7 @@ public class OllamaIO implements AIIO {
     }
 
     private String callOllama(String prompt) {
+        // Minimal payload compatible with Ollama's /api/generate.
         Map<String, Object> payload = new HashMap<>();
         payload.put("model", model);
         payload.put("prompt", prompt);
@@ -174,6 +187,7 @@ public class OllamaIO implements AIIO {
             if (response.statusCode() / 100 != 2) {
                 throw new RuntimeException("Ollama error " + response.statusCode() + ": " + response.body());
             }
+            // Expected response field is "response" with plain text.
             JsonNode json = objectMapper.readTree(response.body());
             JsonNode text = json.get("response");
             if (text == null) {
@@ -181,12 +195,14 @@ public class OllamaIO implements AIIO {
             }
             return text.asText();
         } catch (IOException | InterruptedException e) {
+            // Preserve interrupt status if the thread was interrupted.
             Thread.currentThread().interrupt();
             throw new RuntimeException("Failed to call Ollama", e);
         }
     }
 
     private String[] parseTransformedFiles(String json, String[] filePaths) {
+        // Parse JSON into a path->content map, then align to original order.
         try {
             JsonNode root = objectMapper.readTree(json);
             JsonNode filesNode = root.get("files");
