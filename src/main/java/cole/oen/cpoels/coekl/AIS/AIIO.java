@@ -1,31 +1,23 @@
 package cole.oen.cpoels.coekl.AIS;
 
 public interface AIIO {
+    String processFilesWithAI(String[] filePaths, String aiInstruction);
 
-    public Class AIIOLogging{
-        private String[] loggedData = new String[1];
-    }
+    void saveTransformedFiles(String[] transformedFileContents, String[] originalFilePaths);
 
-    // Interface ideas
-    // Maybe instead could contact different ais?
-    public String processFilesWithAI(String[] filePaths, String aiInstruction);
+    void logTransformationDetails(String aiInstruction, String[] originalFilePaths, String[] transformedFileContents);
 
-    public void saveTransformedFiles(String[] transformedFileContents, String[] originalFilePaths);
+    void handleErrors(Exception e);
 
-    public void logTransformationDetails(String aiInstruction, String[] originalFilePaths, String[] transformedFileContents);
+    void displayStatus(String message);
 
-    public void handleErrors(Exception e);
+    String getTransformationPlan(String aiInstruction, String[] filePaths);
 
-    public void displayStatus(String message);
+    String[] applyTransformationPlan(String transformationPlan, String[] filePaths);
 
-    public String getTransformationPlan(String aiInstruction, String[] filePaths);
+    String[] readFiles(String[] filePaths);
 
-    public String[] applyTransformationPlan(String transformationPlan, String[] filePaths);
+    void writeFiles(String[] fileContents, String[] filePaths);
 
-    public String[] readFiles(String[] filePaths);
-
-    public void writeFiles(String[] fileContents, String[] filePaths);
-
-    public void showTransformationSummary(String aiInstruction, String[] originalFilePaths, String[] transformedFileContents);
-    
+    void showTransformationSummary(String aiInstruction, String[] originalFilePaths, String[] transformedFileContents);
 }

@@ -241,10 +241,25 @@ public class OllamaIO implements AIIO {
                 throw new RuntimeException("Missing response field in Ollama reply.");
             }
             return text.asText();
-        } catch (IOException | InterruptedException e) {
-            // Preserve interrupt status if the thread was interrupted.
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new RuntimeException("Ollama call interrupted", e);
+        } catch (IOException e) {
             throw new RuntimeException("Failed to call Ollama", e);
+        }
+    }
+
+    private void validatePlanInputs(String aiInstruction, String[] filePaths) {
+        if (aiInstruction == null || aiInstruction.isBlank()) {
+            throw new IllegalArgumentException("AI instruction must be provided.");
+        }
+        if (filePaths == null || filePaths.length == 0) {
+            throw new IllegalArgumentException("At least one file path must be provided.");
+        }
+        for (String path : filePaths) {
+            if (path == null || path.isBlank()) {
+                throw new IllegalArgumentException("File path cannot be blank.");
+            }
         }
     }
 
