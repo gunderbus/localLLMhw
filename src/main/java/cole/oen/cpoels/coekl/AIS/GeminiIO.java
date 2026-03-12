@@ -42,7 +42,22 @@ public class GeminiIO implements AIIO {
     @Override
     public String getTransformationPlan(String aiInstruction, String[] filePaths) {
         // Placeholder for getting transformation plan from Gemini API
-        return "Generated transformation plan based on AI instruction.";
+        model.generateContent("Create a concise transformation plan for the following instruction: " + aiInstruction + " based on the contents of files: " + readFiles(filePaths), new ResponseHandler<GenerateContentResponse>() {
+            @Override
+            public void onResponse(GenerateContentResponse response) {
+                // Handle successful response
+                String plan = response.getContent();
+                System.out.println("Received transformation plan: " + plan);
+                return plan;
+            }
+
+            @Override
+            public void onError(Exception e) {
+                // Handle error
+                handleErrors(e);
+            }
+        });
+        return "Unfortunatley there was an error. Please try again.";
     }
 
     @Override
@@ -61,6 +76,7 @@ public class GeminiIO implements AIIO {
                 public void onResponse(GenerateContentResponse response) {
                     // Handle successful response
                     contents.[filePath] = response.getContent();
+                    return contents;
                 }
 
                 @Override
@@ -70,7 +86,7 @@ public class GeminiIO implements AIIO {
                 }
             });
         }
-        return contents;
+        return "Unfortunatley there was an error. Please try again.";
     }   
 
     @Override
