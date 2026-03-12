@@ -1,0 +1,2 @@
+your-project-id-gemini="PLACEHOLDER"
+region-gemini="PLACEHOLDER"
