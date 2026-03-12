@@ -1,20 +1,17 @@
 package cole.oen.cpoels.coekl.AIS;
-import com.google.cloud.vertexai.VertexAI;
-import com.google.cloud.vertexai.api.GenerateContentResponse;
-import com.google.cloud.vertexai.generativeai.GenerativeModel;
-import com.google.cloud.vertexai.generativeai.ResponseHandler;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class GeminiIO implements AIIO {
-    // Implementation of the gemini model
-    new VertexAI client = VertexAI.createClient();
-    GenerativeModel model = client.getGenerativeModel("gemini-1.5-pro");
+    // Gemini integration TODO: wire Vertex AI client here when ready.
 
     @Override
     public String processFilesWithAI(String[] filePaths, String aiInstruction) {
-        // Placeholder for Gemini API integration
-        
+        // Placeholder for Gemini API integration.
         return "Transformed file contents based on AI instruction.";
-
     }
 
     @Override
@@ -36,28 +33,13 @@ public class GeminiIO implements AIIO {
 
     @Override
     public void displayStatus(String message) {
-        // Placeholder for displaying status messages
+        System.out.println(message);
     }
 
     @Override
     public String getTransformationPlan(String aiInstruction, String[] filePaths) {
-        // Placeholder for getting transformation plan from Gemini API
-        model.generateContent("Create a concise transformation plan for the following instruction: " + aiInstruction + " based on the contents of files: " + readFiles(filePaths), new ResponseHandler<GenerateContentResponse>() {
-            @Override
-            public void onResponse(GenerateContentResponse response) {
-                // Handle successful response
-                String plan = response.getContent();
-                System.out.println("Received transformation plan: " + plan);
-                return plan;
-            }
-
-            @Override
-            public void onError(Exception e) {
-                // Handle error
-                handleErrors(e);
-            }
-        });
-        return "Unfortunatley there was an error. Please try again.";
+        // Placeholder for getting transformation plan from Gemini API.
+        return "Generated transformation plan based on AI instruction.";
     }
 
     @Override
@@ -68,35 +50,40 @@ public class GeminiIO implements AIIO {
 
     @Override
     public String[] readFiles(String[] filePaths) {
-        var contents = new String[filePaths.length];
-        for(String filePath : filePaths) {
-            // Placeholder for reading file contents
-            model.generateContent("Read contents of " + filePath + "... PLEASE BE SUPER SPECIFIC", new ResponseHandler<GenerateContentResponse>() {
-                @Override
-                public void onResponse(GenerateContentResponse response) {
-                    // Handle successful response
-                    contents.[filePath] = response.getContent();
-                    return contents;
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    // Handle error
-                    handleErrors(e);
-                }
-            });
+        String[] contents = new String[filePaths.length];
+        for (int i = 0; i < filePaths.length; i++) {
+            contents[i] = readFileSafely(filePaths[i]);
         }
-        return "Unfortunatley there was an error. Please try again.";
+        return contents;
     }   
 
     @Override
     public void writeFiles(String[] fileContents, String[] filePaths) {
-        // Placeholder for writing files
+        for (int i = 0; i < filePaths.length; i++) {
+            writeFileSafely(filePaths[i], fileContents[i]);
+        }
     }
 
     @Override
     public void showTransformationSummary(String aiInstruction, String[] originalFilePaths, String[] transformedFileContents) {
-        // Placeholder for showing transformation summary to the user
+        System.out.println("Applied instruction: " + aiInstruction);
+        System.out.println("Updated " + transformedFileContents.length + " files.");
+    }
+
+    private String readFileSafely(String path) {
+        try {
+            return Files.readString(Path.of(path), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read file: " + path, e);
+        }
+    }
+
+    private void writeFileSafely(String path, String content) {
+        try {
+            Files.writeString(Path.of(path), content, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write file: " + path, e);
+        }
     }
 
     private String buildErrorMessage(Exception e) {
