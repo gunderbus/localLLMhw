@@ -20,4 +20,6 @@ public interface AIIO {
     void writeFiles(String[] fileContents, String[] filePaths);
 
     void showTransformationSummary(String aiInstruction, String[] originalFilePaths, String[] transformedFileContents);
+
+    String getAIResponse(String aiInstruction);
 }

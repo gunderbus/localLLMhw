@@ -115,6 +115,12 @@ public class GeminiIO implements AIIO {
         System.out.println("Updated " + transformedFileContents.length + " files.");
     }
 
+    @Override
+    public String getAIResponse(String aiInstruction) {
+        String prompt = "You are a helpful assistant. Respond to this instruction:\n" + aiInstruction;
+        return callGemini(prompt);
+    }
+
     public List<String> getLoggedData() {
         return Collections.unmodifiableList(loggedData);
     }

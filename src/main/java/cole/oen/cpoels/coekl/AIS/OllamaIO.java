@@ -130,6 +130,12 @@ public class OllamaIO implements AIIO {
         return Collections.unmodifiableList(loggedData);
     }
 
+    @Override
+    public String getAIResponse(String aiInstruction) {
+        // For testing: return a canned response instead of calling Ollama.
+        return callOllama(aiInstruction);
+    }
+
     private String readFileSafely(String path) {
         try {
             String content = Files.readString(Path.of(path), StandardCharsets.UTF_8);
