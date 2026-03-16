@@ -23,14 +23,21 @@ public class GeminiIO implements AIIO {
     private final String modelName;
 
     public GeminiIO() {
-        this.projectId = readEnv("GOOGLE_CLOUD_PROJECT", "GCP_PROJECT", "VERTEX_PROJECT");
-        this.location = readEnv("GOOGLE_CLOUD_LOCATION", "GCP_LOCATION", "VERTEX_LOCATION");
-        String model = readEnv("GEMINI_MODEL", "VERTEX_MODEL");
-        this.modelName = model == null || model.isBlank() ? "gemini-1.5-pro" : model;
-        if (projectId == null || projectId.isBlank()) {
+        this(
+            readEnvStatic("GOOGLE_CLOUD_PROJECT", "GCP_PROJECT", "VERTEX_PROJECT"),
+            readEnvStatic("GOOGLE_CLOUD_LOCATION", "GCP_LOCATION", "VERTEX_LOCATION"),
+            readEnvStatic("GEMINI_MODEL", "VERTEX_MODEL")
+        );
+    }
+
+    public GeminiIO(String projectId, String location, String modelName) {
+        this.projectId = projectId;
+        this.location = location;
+        this.modelName = modelName == null || modelName.isBlank() ? "gemini-1.5-pro" : modelName;
+        if (this.projectId == null || this.projectId.isBlank()) {
             throw new IllegalStateException("Missing GCP project id. Set GOOGLE_CLOUD_PROJECT.");
         }
-        if (location == null || location.isBlank()) {
+        if (this.location == null || this.location.isBlank()) {
             throw new IllegalStateException("Missing GCP location. Set GOOGLE_CLOUD_LOCATION (e.g., us-central1).");
         }
     }
@@ -248,6 +255,10 @@ public class GeminiIO implements AIIO {
     }
 
     private String readEnv(String... keys) {
+        return readEnvStatic(keys);
+    }
+
+    private static String readEnvStatic(String... keys) {
         for (String key : keys) {
             String value = System.getenv(key);
             if (value != null && !value.isBlank()) {

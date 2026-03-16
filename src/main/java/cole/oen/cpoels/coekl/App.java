@@ -2,12 +2,22 @@ package cole.oen.cpoels.coekl;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Separator;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -21,12 +31,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import cole.oen.cpoels.coekl.AIS.AIIO;
+import cole.oen.cpoels.coekl.AIS.GeminiIO;
 import cole.oen.cpoels.coekl.AIS.OllamaIO;
 
 public class App extends Application {
     @Override
     public void start(Stage stage) {
-        AIIO aiBackend = new OllamaIO("http://localhost:11434", "llama3");
+        AppConfig config = AppConfig.load(AppConfig.defaultPath());
+        ObjectProperty<AIIO> aiBackend = new SimpleObjectProperty<>();
+        BooleanProperty busy = new SimpleBooleanProperty(false);
         AtomicReference<String> planRef = new AtomicReference<>();
 
         Label title = new Label("AI File Transformer");
@@ -96,6 +109,9 @@ public class App extends Application {
             new FileChooser.ExtensionFilter("All Files", "*.*")
         );
 
+        generatePlanButton.disableProperty().bind(busy.or(aiBackend.isNull()));
+        applyButton.disableProperty().bind(busy.or(aiBackend.isNull()));
+
         uploadButton.setOnAction(event -> {
             List<File> files = fileChooser.showOpenMultipleDialog(stage);
             if (files == null || files.isEmpty()) {
@@ -113,6 +129,10 @@ public class App extends Application {
         });
 
         generatePlanButton.setOnAction(event -> {
+            if (aiBackend.get() == null) {
+                statusLabel.setText("Configure AI settings before generating a plan.");
+                return;
+            }
             if (selectedFilesView.getItems().isEmpty()) {
                 statusLabel.setText("Upload at least one file to generate a plan.");
                 return;
@@ -122,14 +142,12 @@ public class App extends Application {
                 return;
             }
             String[] filePaths = selectedFilesView.getItems().toArray(String[]::new);
-            generatePlanButton.setDisable(true);
-            applyButton.setDisable(true);
+            busy.set(true);
             statusLabel.setText("Generating plan with local LLM...");
             CompletableFuture
-                .supplyAsync(() -> aiBackend.getTransformationPlan(promptInput.getText(), filePaths))
+                .supplyAsync(() -> aiBackend.get().getTransformationPlan(promptInput.getText(), filePaths))
                 .whenComplete((plan, error) -> Platform.runLater(() -> {
-                    generatePlanButton.setDisable(false);
-                    applyButton.setDisable(false);
+                    busy.set(false);
                     if (error != null) {
                         statusLabel.setText("Plan failed: " + error.getMessage());
                         return;
@@ -140,6 +158,10 @@ public class App extends Application {
         });
 
         applyButton.setOnAction(event -> {
+            if (aiBackend.get() == null) {
+                statusLabel.setText("Configure AI settings before applying changes.");
+                return;
+            }
             if (selectedFilesView.getItems().isEmpty()) {
                 statusLabel.setText("No files uploaded.");
                 return;
@@ -154,24 +176,43 @@ public class App extends Application {
                 return;
             }
             String[] filePaths = selectedFilesView.getItems().toArray(String[]::new);
-            generatePlanButton.setDisable(true);
-            applyButton.setDisable(true);
+            busy.set(true);
             statusLabel.setText("Applying changes with local LLM...");
             CompletableFuture
-                .supplyAsync(() -> aiBackend.applyTransformationPlan(plan, filePaths))
+                .supplyAsync(() -> aiBackend.get().applyTransformationPlan(plan, filePaths))
                 .whenComplete((updatedFiles, error) -> Platform.runLater(() -> {
-                    generatePlanButton.setDisable(false);
-                    applyButton.setDisable(false);
+                    busy.set(false);
                     if (error != null) {
                         statusLabel.setText("Apply failed: " + error.getMessage());
                         return;
                     }
-                    aiBackend.writeFiles(updatedFiles, filePaths);
+                    aiBackend.get().writeFiles(updatedFiles, filePaths);
                     statusLabel.setText("Changes applied to " + filePaths.length + " file(s).");
                 }));
         });
 
-        VBox root = new VBox(panel);
+        VBox settingsPanel = buildSettingsPanel(config, aiBackend, statusLabel);
+        TabPane tabs = new TabPane();
+        Tab settingsTab = new Tab("AI Settings", settingsPanel);
+        Tab transformerTab = new Tab("Transformer", panel);
+        settingsTab.setClosable(false);
+        transformerTab.setClosable(false);
+        tabs.getTabs().addAll(settingsTab, transformerTab);
+        tabs.getSelectionModel().select(settingsTab);
+
+        String startupValidation = validateConfig(config);
+        if (startupValidation == null) {
+            try {
+                aiBackend.set(buildBackend(config));
+                statusLabel.setText("Loaded AI settings. Active backend: " + config.getBackendType().name().toLowerCase() + ".");
+            } catch (RuntimeException e) {
+                statusLabel.setText("AI settings need attention: " + e.getMessage());
+            }
+        } else {
+            statusLabel.setText("Configure AI settings before generating changes.");
+        }
+
+        VBox root = new VBox(tabs);
         root.getStyleClass().add("app-root");
         root.setPadding(new Insets(18));
 
@@ -185,6 +226,125 @@ public class App extends Application {
         stage.setMinHeight(620);
         stage.setScene(scene);
         stage.show();
+    }
+
+    private VBox buildSettingsPanel(AppConfig config, ObjectProperty<AIIO> aiBackend, Label statusLabel) {
+        Label title = new Label("AI Interface Settings");
+        title.getStyleClass().add("screen-title");
+
+        Label subtitle = new Label("Select a backend and configure credentials or endpoints.");
+        subtitle.getStyleClass().add("screen-subtitle");
+
+        Label backendLabel = new Label("Backend");
+        backendLabel.getStyleClass().add("section-label");
+
+        ChoiceBox<AppConfig.BackendType> backendChoice = new ChoiceBox<>(
+            FXCollections.observableArrayList(AppConfig.BackendType.values())
+        );
+        backendChoice.setValue(config.getBackendType());
+
+        Label geminiLabel = new Label("Gemini (Vertex AI)");
+        geminiLabel.getStyleClass().add("section-label");
+
+        TextField geminiProjectField = new TextField(config.getGeminiProjectId());
+        geminiProjectField.setPromptText("Project ID (e.g., my-gcp-project)");
+
+        TextField geminiLocationField = new TextField(config.getGeminiLocation());
+        geminiLocationField.setPromptText("Location (e.g., us-central1)");
+
+        TextField geminiModelField = new TextField(config.getGeminiModel());
+        geminiModelField.setPromptText("Model (default: gemini-1.5-pro)");
+
+        Label ollamaLabel = new Label("Ollama");
+        ollamaLabel.getStyleClass().add("section-label");
+
+        TextField ollamaBaseUrlField = new TextField(config.getOllamaBaseUrl());
+        ollamaBaseUrlField.setPromptText("Base URL (default: http://localhost:11434)");
+
+        TextField ollamaModelField = new TextField(config.getOllamaModel());
+        ollamaModelField.setPromptText("Model (e.g., llama3)");
+
+        Button saveButton = new Button("Save & Use");
+        saveButton.getStyleClass().add("primary-button");
+
+        saveButton.setOnAction(event -> {
+            AppConfig.BackendType backendType = backendChoice.getValue();
+            if (backendType == null) {
+                statusLabel.setText("Select an AI backend before saving.");
+                return;
+            }
+
+            config.setBackendType(backendType);
+            config.setGeminiProjectId(geminiProjectField.getText());
+            config.setGeminiLocation(geminiLocationField.getText());
+            config.setGeminiModel(geminiModelField.getText());
+            config.setOllamaBaseUrl(ollamaBaseUrlField.getText());
+            config.setOllamaModel(ollamaModelField.getText());
+
+            String validationError = validateConfig(config);
+            if (validationError != null) {
+                statusLabel.setText(validationError);
+                return;
+            }
+
+            try {
+                aiBackend.set(buildBackend(config));
+                config.save(AppConfig.defaultPath());
+                statusLabel.setText("AI settings saved. Active backend: " + backendType.name().toLowerCase() + ".");
+            } catch (RuntimeException e) {
+                statusLabel.setText("Failed to initialize backend: " + e.getMessage());
+            }
+        });
+
+        VBox settingsPanel = new VBox(
+            12,
+            title,
+            subtitle,
+            backendLabel,
+            backendChoice,
+            new Separator(),
+            geminiLabel,
+            geminiProjectField,
+            geminiLocationField,
+            geminiModelField,
+            new Separator(),
+            ollamaLabel,
+            ollamaBaseUrlField,
+            ollamaModelField,
+            saveButton
+        );
+        settingsPanel.getStyleClass().add("main-panel");
+        settingsPanel.setMaxWidth(760);
+        settingsPanel.setPadding(new Insets(24));
+
+        return settingsPanel;
+    }
+
+    private AIIO buildBackend(AppConfig config) {
+        if (config.getBackendType() == AppConfig.BackendType.OLLAMA) {
+            return new OllamaIO(config.getOllamaBaseUrl(), config.getOllamaModel());
+        }
+        return new GeminiIO(config.getGeminiProjectId(), config.getGeminiLocation(), config.getGeminiModel());
+    }
+
+    private String validateConfig(AppConfig config) {
+        if (config.getBackendType() == AppConfig.BackendType.GEMINI) {
+            if (config.getGeminiProjectId().isBlank()) {
+                return "Gemini project ID is required.";
+            }
+            if (config.getGeminiLocation().isBlank()) {
+                return "Gemini location is required.";
+            }
+        }
+        if (config.getBackendType() == AppConfig.BackendType.OLLAMA) {
+            if (config.getOllamaBaseUrl().isBlank()) {
+                return "Ollama base URL is required.";
+            }
+            if (config.getOllamaModel().isBlank()) {
+                return "Ollama model name is required.";
+            }
+        }
+        return null;
     }
 
     public static void main(String[] args) {
