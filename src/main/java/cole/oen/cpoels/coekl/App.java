@@ -13,6 +13,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -31,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import cole.oen.cpoels.coekl.AIS.AIIO;
+import cole.oen.cpoels.coekl.AIS.ClaudeIO;
 import cole.oen.cpoels.coekl.AIS.GeminiIO;
 import cole.oen.cpoels.coekl.AIS.OllamaIO;
 
@@ -264,6 +266,25 @@ public class App extends Application {
         TextField ollamaModelField = new TextField(config.getOllamaModel());
         ollamaModelField.setPromptText("Model (e.g., llama3)");
 
+        Label claudeLabel = new Label("Claude");
+        claudeLabel.getStyleClass().add("section-label");
+
+        PasswordField claudeApiKeyField = new PasswordField();
+        claudeApiKeyField.setText(config.getClaudeApiKey());
+        claudeApiKeyField.setPromptText("API Key (starts with sk-...)");
+
+        TextField claudeBaseUrlField = new TextField(config.getClaudeBaseUrl());
+        claudeBaseUrlField.setPromptText("Base URL (default: https://api.anthropic.com)");
+
+        TextField claudeModelField = new TextField(config.getClaudeModel());
+        claudeModelField.setPromptText("Model (e.g., claude-sonnet-4-20250514)");
+
+        TextField claudeVersionField = new TextField(config.getClaudeVersion());
+        claudeVersionField.setPromptText("API Version (default: 2023-06-01)");
+
+        TextField claudeMaxTokensField = new TextField(Integer.toString(config.getClaudeMaxTokens()));
+        claudeMaxTokensField.setPromptText("Max tokens (default: 1024)");
+
         Button saveButton = new Button("Save & Use");
         saveButton.getStyleClass().add("primary-button");
 
@@ -280,6 +301,11 @@ public class App extends Application {
             config.setGeminiModel(geminiModelField.getText());
             config.setOllamaBaseUrl(ollamaBaseUrlField.getText());
             config.setOllamaModel(ollamaModelField.getText());
+            config.setClaudeApiKey(claudeApiKeyField.getText());
+            config.setClaudeBaseUrl(claudeBaseUrlField.getText());
+            config.setClaudeModel(claudeModelField.getText());
+            config.setClaudeVersion(claudeVersionField.getText());
+            config.setClaudeMaxTokens(parseIntOrFallback(claudeMaxTokensField.getText(), config.getClaudeMaxTokens()));
 
             String validationError = validateConfig(config);
             if (validationError != null) {
@@ -311,6 +337,13 @@ public class App extends Application {
             ollamaLabel,
             ollamaBaseUrlField,
             ollamaModelField,
+            new Separator(),
+            claudeLabel,
+            claudeApiKeyField,
+            claudeBaseUrlField,
+            claudeModelField,
+            claudeVersionField,
+            claudeMaxTokensField,
             saveButton
         );
         settingsPanel.getStyleClass().add("main-panel");
@@ -323,6 +356,15 @@ public class App extends Application {
     private AIIO buildBackend(AppConfig config) {
         if (config.getBackendType() == AppConfig.BackendType.OLLAMA) {
             return new OllamaIO(config.getOllamaBaseUrl(), config.getOllamaModel());
+        }
+        if (config.getBackendType() == AppConfig.BackendType.CLAUDE) {
+            return new ClaudeIO(
+                config.getClaudeApiKey(),
+                config.getClaudeBaseUrl(),
+                config.getClaudeModel(),
+                config.getClaudeVersion(),
+                config.getClaudeMaxTokens()
+            );
         }
         return new GeminiIO(config.getGeminiProjectId(), config.getGeminiLocation(), config.getGeminiModel());
     }
@@ -344,7 +386,35 @@ public class App extends Application {
                 return "Ollama model name is required.";
             }
         }
+        if (config.getBackendType() == AppConfig.BackendType.CLAUDE) {
+            if (config.getClaudeApiKey().isBlank()) {
+                return "Claude API key is required.";
+            }
+            if (config.getClaudeBaseUrl().isBlank()) {
+                return "Claude base URL is required.";
+            }
+            if (config.getClaudeModel().isBlank()) {
+                return "Claude model name is required.";
+            }
+            if (config.getClaudeVersion().isBlank()) {
+                return "Claude API version is required.";
+            }
+            if (config.getClaudeMaxTokens() <= 0) {
+                return "Claude max tokens must be greater than 0.";
+            }
+        }
         return null;
+    }
+
+    private int parseIntOrFallback(String raw, int fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     public static void main(String[] args) {
