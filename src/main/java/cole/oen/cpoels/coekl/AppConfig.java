@@ -29,6 +29,7 @@ public class AppConfig {
 
     public static Path defaultPath() {
         return Path.of("config.properties");
+        
     }
 
     public static AppConfig load(Path path) {
